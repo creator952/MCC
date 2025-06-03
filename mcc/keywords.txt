@@ -12,11 +12,16 @@ mcc	KEYWORD1
 # Methods and Functions (KEYWORD2)
 #######################################
 
-mcc_encode	KEYWORD2
-mcc_decode	KEYWORD2
-mcc_encodeAudio	KEYWORD2
-mcc_decodeToPCM	KEYWORD2
-mcc_setSampleRate	KEYWORD2
+mcc_init
+mcc_encode
+mcc_decode
+mcc_decode_tick
+mcc_stop
+mcc_isPlaying
+mcc_setSampleRate
+mcc_getSampleRate
+mcc_setVolume
+mcc_getVolume	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
