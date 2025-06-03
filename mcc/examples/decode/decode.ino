@@ -1,35 +1,34 @@
 #include <Arduino.h>
 #include <mcc.h>
 
-// Example encoded MCC string (matches custom encoding rules)
-const char encodedMCC[] = "# % $ & * ! @ 12 34";
-
 void setup() {
   Serial.begin(115200);
-  while (!Serial); // Wait for serial connection on some boards
+  while (!Serial);
+
+  // Example MCC encoded string (from encode output)
+  const char* encoded = "# $ % & * ! @ 00 01 FF F0 FC EF 0F 12 34";
 
   Serial.println("Encoded MCC string:");
-  Serial.println(encodedMCC);
+  Serial.println(encoded);
 
-  int8_t decoded[64];  // Buffer for decoded samples
-  int count = mcc_decode(encodedMCC, decoded, sizeof(decoded));
-  
+  int8_t decoded[64];  // decoded signed PCM buffer
+  int count = mcc_decode(encoded, decoded, sizeof(decoded));
+
   if (count < 0) {
-    Serial.println("Error decoding MCC string!");
+    Serial.println("Decoding failed!");
     return;
   }
 
-  Serial.print("Decoded signed 8-bit PCM samples (");
-  Serial.print(count);
-  Serial.println(" bytes):");
-
+  Serial.println("Decoded signed 8-bit PCM data (hex):");
   for (int i = 0; i < count; i++) {
-    Serial.print(decoded[i], DEC);
+    // Print hex with leading zeros and uppercase
+    if ((uint8_t)decoded[i] < 0x10) Serial.print("0");
+    Serial.print((uint8_t)decoded[i], HEX);
     Serial.print(" ");
   }
   Serial.println();
 }
 
 void loop() {
-  // Nothing to do here
+  // Nothing here
 }
