@@ -1,154 +1,65 @@
 #include "mcc.h"
 
-// Helper: Split String by spaces into an array of tokens
-static void splitStringBySpace(const String& str, String tokens[], size_t& count, size_t maxTokens) {
-  count = 0;
-  int start = 0;
-  int end = str.indexOf(' ', start);
-  while (end != -1 && count < maxTokens) {
-    tokens[count++] = str.substring(start, end);
-    start = end + 1;
-    end = str.indexOf(' ', start);
-  }
-  if (count < maxTokens && start < str.length()) {
-    tokens[count++] = str.substring(start);
-  }
+// Default sample rate (can be overridden with mcc_setSampleRate)
+uint32_t mcc_sampleRate = 8000;
+
+/**
+ * Set the global sample rate
+ */
+void mcc_setSampleRate(uint32_t hz) {
+    mcc_sampleRate = hz;
 }
 
 /**
- * @brief Encode raw signed 8-bit audio data into a space-separated MCC string.
- *        Format: each sample converted to int, separated by spaces.
+ * Encode a single signed 8-bit PCM sample into an MCC character.
  */
-String mcc_encode(const int8_t* input, size_t length) {
-  String result = "";
-  for (size_t i = 0; i < length; i++) {
-    result += String(input[i]);
-    if (i != length - 1) result += " ";
-  }
-  return result;
+char mcc_encode(int8_t pcm) {
+    // Map -128..127 to 0..255
+    uint8_t val = static_cast<uint8_t>(pcm + 128);
+
+    // Now we map 0–255 to printable MCC characters (e.g., ASCII 35–126)
+    // Total range: 92 characters (126 - 35 + 1) → scale accordingly
+    uint8_t scaled = (val * 92) / 256;
+
+    // Return printable char starting from '#'
+    return static_cast<char>(35 + scaled);
 }
 
 /**
- * @brief Decode MCC string (space-separated tokens) into signed 8-bit audio samples.
- * @return Number of samples decoded.
+ * Decode an MCC character back into signed 8-bit PCM.
  */
-size_t decodeMCC(const String& mcc_string, int8_t* output, size_t max_output_len) {
-  if (mcc_string.length() == 0 || max_output_len == 0) return 0;
+int8_t mcc_decode(char c) {
+    // Clamp character to range '#'(35) to '~'(126)
+    if (c < 35 || c > 126) return 0;
 
-  // Split MCC string by spaces into tokens
-  const size_t maxTokens = max_output_len;
-  String tokens[maxTokens];
-  size_t tokenCount = 0;
-  splitStringBySpace(mcc_string, tokens, tokenCount, maxTokens);
+    // Convert char to 0–91
+    uint8_t scaled = static_cast<uint8_t>(c - 35);
 
-  size_t outputCount = 0;
-  for (size_t i = 0; i < tokenCount; i++) {
-    // Ignore empty tokens (defensive)
-    if (tokens[i].length() == 0) continue;
+    // Scale back to 0–255
+    uint8_t val = (scaled * 256) / 92;
 
-    // Try to convert token to integer
-    int val = tokens[i].toInt();
-    if (val < -128 || val > 127) {
-      // Out of int8 range, clamp or stop
-      val = constrain(val, -128, 127);
-    }
-    output[outputCount++] = (int8_t)val;
-    if (outputCount >= max_output_len) break;
-  }
-  return outputCount;
+    // Convert to signed 8-bit PCM
+    return static_cast<int8_t>(val - 128);
 }
 
 /**
- * @brief Validate MCC string is strictly space-separated tokens.
- *        No tabs, newlines, commas allowed.
+ * Encode an array of signed 8-bit PCM audio to an MCC string.
  */
-bool isValidMCCString(const String& mcc_string) {
-  for (unsigned int i = 0; i < mcc_string.length(); i++) {
-    char c = mcc_string.charAt(i);
-    if (!(c == ' ' || (c >= '0' && c <= '9') || c == '-' || c == '^' || c == '#'
-          || c == '(' || c == ')')) {
-      return false; // invalid char found
+String mcc_encodeAudio(const int8_t* pcm, size_t len) {
+    String encoded = "";
+
+    for (size_t i = 0; i < len; i++) {
+        encoded += mcc_encode(pcm[i]);
     }
-  }
-  // Check no multiple spaces in a row
-  for (unsigned int i = 0; i < mcc_string.length() - 1; i++) {
-    if (mcc_string.charAt(i) == ' ' && mcc_string.charAt(i + 1) == ' ')
-      return false; // consecutive spaces not allowed
-  }
-  return true;
+
+    return encoded;
 }
 
 /**
- * @brief Replace every 5 consecutive occurrences of pattern "#(# # # # #)"
- *        with a single caret '^' in the string.
- *        Pattern example: "#(1 2 3 4 5)"
+ * Decode MCC string into PCM audio array.
  */
-String replacePatternsWithCaret(const String& mcc_string) {
-  String patternPrefix = "#(";
-  const int patternLen = 13; // length of "#(# # # # #)" is always 13 chars
-  
-  String result = "";
-  int i = 0;
-  int len = mcc_string.length();
-
-  while (i < len) {
-    // Try to detect the pattern starting at i
-    bool isPattern = false;
-    if (i + patternLen <= len) {
-      String sub = mcc_string.substring(i, i + patternLen);
-      // Check if matches pattern: starts with "#(" and ends with ")"
-      // and has five space separated numbers inside
-      if (sub.startsWith(patternPrefix) && sub.endsWith(")")) {
-        // crude validation of five numbers separated by spaces inside
-        // example: "#(1 2 3 4 5)"
-        String inner = sub.substring(2, patternLen - 1);
-        int spaceCount = 0;
-        for (unsigned int j = 0; j < inner.length(); j++) {
-          if (inner.charAt(j) == ' ') spaceCount++;
-        }
-        if (spaceCount == 4) { // 5 numbers have 4 spaces
-          isPattern = true;
-        }
-      }
+void mcc_decodeToPCM(const char* encoded, int8_t* out_pcm, size_t max_len) {
+    for (size_t i = 0; i < max_len && encoded[i] != '\0'; i++) {
+        out_pcm[i] = mcc_decode(encoded[i]);
     }
-
-    if (isPattern) {
-      // Count consecutive patterns
-      int countPatterns = 1;
-      int pos = i + patternLen;
-      while (pos + patternLen <= len) {
-        String nextSub = mcc_string.substring(pos, pos + patternLen);
-        if (nextSub == mcc_string.substring(i, i + patternLen)) {
-          countPatterns++;
-          pos += patternLen;
-        } else {
-          break;
-        }
-      }
-
-      // Replace each group of 5 patterns with a caret
-      int fullGroups = countPatterns / 5;
-      int remainder = countPatterns % 5;
-
-      for (int g = 0; g < fullGroups; g++) {
-        result += "^ ";
-      }
-      // Append remaining patterns as is
-      for (int r = 0; r < remainder; r++) {
-        result += mcc_string.substring(i, i + patternLen) + " ";
-      }
-      i += countPatterns * patternLen;
-    } else {
-      // Copy character normally
-      result += mcc_string.charAt(i);
-      i++;
-    }
-  }
-
-  // Trim trailing spaces
-  while (result.endsWith(" ")) {
-    result.remove(result.length() - 1);
-  }
-
-  return result;
 }
