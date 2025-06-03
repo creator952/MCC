@@ -13,10 +13,13 @@ mcc	KEYWORD1
 #######################################
 
 mcc_encode	KEYWORD2
-decodeMCC	KEYWORD2
+mcc_decode	KEYWORD2
+mcc_encodeAudio	KEYWORD2
+mcc_decodeToPCM	KEYWORD2
+mcc_setSampleRate	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
 #######################################
 
-# (Add any constants here, if you have any)
+# None yet
