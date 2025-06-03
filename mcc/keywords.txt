@@ -1,4 +1,22 @@
-mcc_encode	FUNCTION
-mcc_decode	FUNCTION
-MCC_SYMBOLS	CONSTANT
-MCC_SYMBOLS_COUNT	CONSTANT
+#######################################
+# Syntax Coloring Map
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+mcc	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+mcc_encode	KEYWORD2
+decodeMCC	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+# (Add any constants here, if you have any)
