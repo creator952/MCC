@@ -3,38 +3,48 @@
 
 #include <Arduino.h>
 
-/**
- * @brief Encode raw audio data (signed int8_t array) into a space-separated MCC string.
- * @param input Pointer to signed 8-bit audio data.
- * @param length Number of elements in input.
- * @return String containing the encoded MCC data, space-separated.
- */
-String mcc_encode(const int8_t* input, size_t length);
+// --- User-defined audio sample rate ---
+extern uint32_t mcc_sampleRate;
 
 /**
- * @brief Decode an MCC-encoded String into raw signed 8-bit audio data.
- *        The MCC string should be space-separated tokens.
- * @param mcc_string MCC-encoded data as a String.
- * @param output Pointer to buffer where decoded data will be stored.
- * @param max_output_len Maximum size of output buffer.
- * @return Number of decoded elements written to output.
+ * @brief Set the sample rate (Hz) for MCC audio playback.
+ * 
+ * @param hz The sample rate in Hz (e.g., 8000, 16000, 44100).
  */
-size_t decodeMCC(const String& mcc_string, int8_t* output, size_t max_output_len);
+void mcc_setSampleRate(uint32_t hz);
 
 /**
- * @brief Strictly checks that MCC string tokens are space-separated only.
- *        Optionally can clean or validate the string for this requirement.
- * @param mcc_string Input MCC string.
- * @return True if string is valid according to strict spacing, false otherwise.
+ * @brief Encode a signed 8-bit PCM sample into a single MCC character.
+ * 
+ * @param pcm A signed 8-bit audio sample.
+ * @return char MCC-encoded character.
  */
-bool isValidMCCString(const String& mcc_string);
+char mcc_encode(int8_t pcm);
 
 /**
- * @brief Replace every 5 occurrences of pattern "#(# # # # #)" in the MCC string with '^'.
- *        This helps compress repetitive patterns.
- * @param mcc_string Input MCC string (modified in place).
- * @return Modified MCC string with replacements.
+ * @brief Decode a single MCC character back to a signed 8-bit PCM sample.
+ * 
+ * @param c MCC character.
+ * @return int8_t Decoded signed 8-bit PCM sample.
  */
-String replacePatternsWithCaret(const String& mcc_string);
+int8_t mcc_decode(char c);
+
+/**
+ * @brief Encode an array of signed 8-bit PCM audio to MCC string.
+ * 
+ * @param pcm Pointer to signed 8-bit PCM array.
+ * @param len Number of samples.
+ * @return String Encoded MCC string.
+ */
+String mcc_encodeAudio(const int8_t* pcm, size_t len);
+
+/**
+ * @brief Decode an MCC string to signed 8-bit PCM samples.
+ * 
+ * @param encoded Pointer to MCC string (null-terminated).
+ * @param out_pcm Output buffer to hold decoded PCM samples.
+ * @param max_len Maximum number of samples to decode.
+ */
+void mcc_decodeToPCM(const char* encoded, int8_t* out_pcm, size_t max_len);
 
 #endif // MCC_H
