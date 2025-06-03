@@ -1,50 +1,69 @@
 #ifndef MCC_H
 #define MCC_H
 
-#include <Arduino.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-// --- User-defined audio sample rate ---
-extern uint32_t mcc_sampleRate;
+#include <stdint.h>
+#include <stddef.h>
 
-/**
- * @brief Set the sample rate (Hz) for MCC audio playback.
- * 
- * @param hz The sample rate in Hz (e.g., 8000, 16000, 44100).
- */
-void mcc_setSampleRate(uint32_t hz);
+//
+// PLATFORM DETECTION
+//
+#if defined(ARDUINO)
+  #include <Arduino.h>
+#elif defined(PICO)
+  #include "pico/stdlib.h"
+  #include "hardware/pwm.h"
+#else
+  #warning "Platform not explicitly supported. Please define ARDUINO or PICO."
+#endif
 
-/**
- * @brief Encode a signed 8-bit PCM sample into a single MCC character.
- * 
- * @param pcm A signed 8-bit audio sample.
- * @return char MCC-encoded character.
- */
-char mcc_encode(int8_t pcm);
+//
+// MCC - Mono 8-bit PCM Audio Codec & Player Interface
+//
 
-/**
- * @brief Decode a single MCC character back to a signed 8-bit PCM sample.
- * 
- * @param c MCC character.
- * @return int8_t Decoded signed 8-bit PCM sample.
- */
-int8_t mcc_decode(char c);
+// Initialize MCC audio system, call before playback or encoding
+void mcc_init(void);
 
-/**
- * @brief Encode an array of signed 8-bit PCM audio to MCC string.
- * 
- * @param pcm Pointer to signed 8-bit PCM array.
- * @param len Number of samples.
- * @return String Encoded MCC string.
- */
-String mcc_encodeAudio(const int8_t* pcm, size_t len);
+// Set the sample rate in Hz for encoding and playback.
+// Common values: 8000, 16000, 22050, 44100, 48000
+void mcc_setSampleRate(uint16_t sampleRateHz);
 
-/**
- * @brief Decode an MCC string to signed 8-bit PCM samples.
- * 
- * @param encoded Pointer to MCC string (null-terminated).
- * @param out_pcm Output buffer to hold decoded PCM samples.
- * @param max_len Maximum number of samples to decode.
- */
-void mcc_decodeToPCM(const char* encoded, int8_t* out_pcm, size_t max_len);
+// Get the current sample rate set by mcc_setSampleRate()
+uint16_t mcc_getSampleRate(void);
+
+// Encode raw signed 8-bit PCM audio (stored as unsigned bytes, 0x00 to 0xFF)
+// rawData: pointer to raw PCM samples
+// length: number of samples
+// Returns pointer to newly allocated encoded data buffer (must be freed by caller)
+// (For now this can be a pass-through, extend with compression later)
+char* mcc_encode(const unsigned char* rawData, size_t length);
+
+// Decode/play raw signed 8-bit PCM audio stored as unsigned bytes (0x00-0xFF).
+// rawData: pointer to raw PCM samples
+// length: number of samples
+// outputPin: Arduino pin number or Pico GPIO for PWM output
+// loop: if non-zero, loops playback continuously
+// volume: 0 (mute) to 255 (max volume)
+// Returns 0 on success, non-zero on error
+int mcc_decode(const unsigned char* rawData, size_t length, uint8_t outputPin, uint8_t loop, uint8_t volume);
+
+// Stops playback if currently playing asynchronously
+void mcc_stop(void);
+
+// Query if playback is currently running (non-zero = playing)
+int mcc_isPlaying(void);
+
+// Set volume for playback (0-255)
+void mcc_setVolume(uint8_t volume);
+
+// Get current playback volume (0-255)
+uint8_t mcc_getVolume(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MCC_H
